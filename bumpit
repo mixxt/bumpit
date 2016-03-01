@@ -1,43 +1,52 @@
 #!/usr/bin/env ruby
 
-########################
-# Bump It!
-#
-# author: Philip Claren
-# date: 24.04.2014
-
 def error_and_out(msg)
   puts "#{msg}\n"
   exit
 end
 
-error_and_out('Must be in develop branch!') if `git rev-parse --abbrev-ref HEAD`.strip != 'develop'
+require 'optparse'
 
+options = {
+    version_file: 'version',
+    push: true
+}
+
+o = OptionParser.new do |o|
+  o.on('-t', '--release-tag VERSION', 'Version for release, e.g. 1.0 or 16-1') { |version| options[:release_tag] = version }
+  o.on('-n', '--next-name NAME', 'Name for next version, used as tag on development') { |name| options[:next_name] = name }
+  o.on('-f', '--version-file [FILE]', 'File to store version information, default: version') { |name| options[:version_file] = name }
+  o.on('--release-name [NAME]', 'Current release name, default taken from version file') { |name| options[:release_name] = name }
+  o.on('--no-push', 'Don\'t push') { options[:push] = false }
+  o.on('-h', '--help') { puts o; exit }
+  o.parse!
+end
+
+error_and_out("Please provide release tag with the -t option\n#{o}") unless options[:release_tag]
+error_and_out("Please provide next version name with the -n option\n#{o}") unless options[:next_name]
+error_and_out("Invalid next version name, must match /\A[\w]+\z/i\n#{o}") unless options[:next_name] =~ /\A[\w]+\z/i
+
+error_and_out('Must be in develop branch!') if `git rev-parse --abbrev-ref HEAD`.strip != 'develop'
 error_and_out('Not a clean state!') if `git status -s`.strip != ''
 
-error_and_out('No tags found!') if `git tag`.strip == ''
+release_branch = "release-#{options[:release_tag]}"
 
-current = `git describe --abbrev=0`.split('-').map(&:strip)
-error_and_out("No valid version found! Found: #{current[0].inspect}") unless current[0].match(/^[0-9]{1}\.[0-9]{1,2}$/)
-error_and_out("No alpha version found! Found: #{current[1].inspect}") if current[1] != 'alpha'
-
-# preconditions look good, carry on
-
-major, minor = current[0].split('.').map(&:to_i)
-
-`git checkout -b release-#{major}.#{minor}`
-`echo #{major}.#{minor}-beta > version`
+`git checkout -b #{release_branch}`
+File.open(options[:version_file], 'w') { |f| f.write("#{options[:release_tag]} (#{options[:release_name]})\n") }
 `git add version`
-`git commit -m 'Version #{major}.#{minor} beta'`
-`git tag -a '#{major}.#{minor}-beta' -m 'v#{major}.#{minor} beta'`
-`git push -u origin release-#{major}.#{minor}`
-`git push --tags`
+`git commit -m 'Release version #{options[:release_tag]} (#{options[:release_name]}'`
+`git tag -a '#{options[:release_tag]}' -m 'v#{options[:release_tag]}'`
 
 `git checkout develop`
-`git merge release-#{major}.#{minor}`
-`echo #{major}.#{minor+1}-alpha > version`
+`git merge #{release_branch}`
+File.open(options[:version_file], 'w') { |f| f.write("development (#{options[:next_name]}\n") }
 `git add version`
-`git commit -m 'Version #{major}.#{minor+1} alpha'`
-`git tag -a '#{major}.#{minor+1}-alpha' -m 'v#{major}.#{minor+1} alpha'`
-`git push`
-`git push --tags`
+`git commit -m 'Start development of #{options[:next_name].inspect}'`
+`git tag -a '#{options[:next_name]}' -m '#{options[:next_name]} development'`
+
+if options[:push]
+  `git push -u origin #{release_branch}:#{release_branch}`
+  `git push -u origin develop:develop`
+  `git push -u origin #{options[:release_tag].inspect}`
+  `git push -u origin #{options[:next_name].inspect}`
+end
