@@ -34,7 +34,7 @@ release_branch = "release-#{options[:release_tag]}"
 `git checkout -b #{release_branch}`
 File.open(options[:version_file], 'w') { |f| f.write("#{options[:release_tag]} (#{options[:release_name]})\n") }
 `git add version`
-`git commit -m 'Release version #{options[:release_tag]} (#{options[:release_name]}'`
+`git commit -m 'Release version "#{options[:release_tag]} (#{options[:release_name]})"'`
 `git tag -a '#{options[:release_tag]}' -m 'v#{options[:release_tag]}'`
 
 `git checkout develop`
