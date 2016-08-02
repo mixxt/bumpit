@@ -39,7 +39,7 @@ File.open(options[:version_file], 'w') { |f| f.write("#{options[:release_tag]} (
 
 `git checkout develop`
 `git merge #{release_branch}`
-File.open(options[:version_file], 'w') { |f| f.write("development (#{options[:next_name]}\n") }
+File.open(options[:version_file], 'w') { |f| f.write("development (#{options[:next_name]})\n") }
 `git add version`
 `git commit -m 'Start development of #{options[:next_name].inspect}'`
 `git tag -a '#{options[:next_name]}' -m '#{options[:next_name]} development'`
